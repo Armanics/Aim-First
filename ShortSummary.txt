@@ -1,0 +1,2 @@
+Aim First is an upcoming FPS aim trainer built for players who just want to get straight to the grind. Inspired by Aimlabs, it cuts out the heavy load times and bloated menus of traditional applications. It's a quick, lightweight game that's instantly ready to go—no waiting around, no opening clunky software, just pure mechanical training to get your crosshair pixel-perfect. This is my first time creating something like this. I have used CSS, HTML and JavaScript for the dynamics and soon will develop a 3D model for this short aim trainer 
+and Mechanical helper
