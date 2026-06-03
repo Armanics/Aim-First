@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Aim First | A17</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;600;800&display=swap');
+
+        :root {
+            --valo-red: #ff4655;
+            --aimlabs-blue: #00e5ff;
+            --neon-pink: #ff00ff;
+            --neon-purple: #8a2be2;
+            --dark-bg: #0b1116;
+            --glass-bg: rgba(11, 17, 22, 0.7);
+            --glass-border: rgba(0, 229, 255, 0.4);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--dark-bg);
+            overflow: hidden;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; 
+        }
+
+        #gameCanvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0; z-index: 1;
+        }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; 
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 20px; box-sizing: border-box; z-index: 2;
+        }
+
+        .hud-header { display: flex; justify-content: space-between; width: 100%; }
+
+        .hud-box {
+            background: rgba(11, 17, 22, 0.85);
+            border-left: 4px solid var(--aimlabs-blue);
+            padding: 8px 15px; color: #ffffff;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+
+        .hud-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #8b978f; }
+        .hud-value { font-family: 'Teko', sans-serif; font-size: 32px; font-weight: 700; line-height: 1; text-shadow: 0 0 10px rgba(255,255,255,0.3); }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .menu-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(-45deg, rgba(255, 70, 85, 0.8), rgba(138, 43, 226, 0.8), rgba(0, 229, 255, 0.8), rgba(11, 17, 22, 0.9));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            display: flex; justify-content: center; align-items: center; z-index: 10;
+        }
+
+        .menu-window {
+            background: var(--glass-bg); 
+            border: 2px solid var(--glass-border);
+            width: 90%; max-width: 450px; border-radius: 20px; padding: 30px; box-sizing: border-box;
+            box-shadow: 0 0 30px rgba(0, 229, 255, 0.3), inset 0 0 20px rgba(0, 0, 0, 0.5); 
+            color: #ffffff; text-align: center;
+            max-height: 90vh; overflow-y: auto;
+            backdrop-filter: blur(20px);
+        }
+
+        .menu-window::-webkit-scrollbar { width: 8px; }
+        .menu-window::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 10px; }
+        .menu-window::-webkit-scrollbar-thumb { background: var(--aimlabs-blue); border-radius: 10px; }
+
+        .menu-window h1 {
+            font-family: 'Teko', sans-serif; font-size: 55px; margin: 0 0 5px 0; line-height: 1;
+            background: linear-gradient(135deg, #ffffff, var(--aimlabs-blue), var(--neon-pink));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(0, 229, 255, 0.4);
+        }
+
+        .menu-window p { color: #e2e8f0; font-size: 15px; margin-bottom: 20px; font-weight: 600; }
+        .menu-pane { display: flex; flex-direction: column; gap: 12px; }
+        .hidden { display: none !important; }
+
+        input[type="text"] {
+            width: 100%; padding: 15px; border-radius: 12px;
+            border: 2px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6);
+            color: white; font-size: 16px; font-family: 'Plus Jakarta Sans', sans-serif;
+            box-sizing: border-box; outline: none; margin-bottom: 15px; text-align: center;
+            transition: all 0.3s;
+        }
+        input[type="text"]:focus { border-color: var(--neon-pink); box-shadow: 0 0 15px rgba(255, 0, 255, 0.4); }
+
+        .settings-group { text-align: left; background: rgba(0,0,0,0.4); padding: 10px 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1); }
+        .settings-group label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; color: #00e5ff; margin-bottom: 8px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--neon-pink); }
+        input[type="color"] { width: 100%; height: 40px; border: none; border-radius: 5px; cursor: pointer; background: transparent; }
+        select.settings-select {
+            width: 100%; padding: 10px; border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.6);
+            color: white; font-size: 14px; font-family: 'Plus Jakarta Sans', sans-serif;
+            outline: none; cursor: pointer;
+        }
+        select.settings-select option { background: #0b1116; color: white; }
+
+        .btn {
+            background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff; padding: 15px 20px; font-size: 15px; font-weight: 600;
+            border-radius: 12px; cursor: pointer; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex; justify-content: space-between; align-items: center; text-align: left;
+            position: relative; overflow: hidden;
+        }
+        .btn:hover, .btn:active { 
+            background: linear-gradient(90deg, rgba(0,229,255,0.2), rgba(255,0,255,0.2)); 
+            color: #ffffff; transform: scale(1.02); border-color: var(--aimlabs-blue); 
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.4);
+        }
+        .btn-primary { background: var(--valo-red); border-color: var(--valo-red); color: white; }
+        .btn-primary:hover, .btn-primary:active { 
+            background: #ffffff; color: var(--valo-red); border-color: #ffffff; 
+            box-shadow: 0 0 20px rgba(255, 70, 85, 0.6);
+        }
+        .btn-back { justify-content: center; color: #a0aec0; font-size: 13px; margin-top: 10px; border: none; background: transparent; box-shadow: none !important;}
+        .btn-back:hover { background: rgba(255,255,255,0.1); border-color: transparent; color: #fff;}
+
+        .lb-entry {
+            display: flex; justify-content: space-between;
+            background: rgba(0,0,0,0.5); padding: 12px 15px;
+            border-radius: 8px; margin-bottom: 5px; font-size: 14px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .lb-entry.highlight { border-left: 3px solid var(--neon-pink); background: rgba(255, 0, 255, 0.1); }
+
+        #damage-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 70, 85, 0.3); pointer-events: none; opacity: 0; z-index: 4; transition: opacity 0.05s ease;
+        }
+
+        @media (max-width: 600px) {
+            .menu-window h1 { font-size: 42px; }
+            .btn { flex-direction: column; text-align: center; justify-content: center; gap: 5px;}
+            .btn div { text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="damage-overlay"></div>
+
+    <!-- HUD -->
+    <div id="ui-layer" class="hidden">
+        <div class="hud-header">
+            <div class="hud-box">
+                <div class="hud-label" id="metric-label">Health</div>
+                <div class="hud-value" id="metric-val">100</div>
+            </div>
+            <div class="hud-box" style="border-left-color: var(--valo-red);">
+                <div class="hud-label">Score</div>
+                <div class="hud-value" id="score-val">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Menus -->
+    <div class="menu-overlay" id="menu-system">
+        
+        <div class="menu-window" id="panel-login">
+            <h1>USERNAME</h1>
+            <p>Identify yourself for the global leaderboard.</p>
+            <div class="menu-pane">
+                <input type="text" id="username-input" placeholder="Enter Username..." autocomplete="off">
+                <button class="btn btn-primary" style="justify-content: center;" onclick="handleLogin()">Sign In / Continue</button>
+            </div>
+        </div>
+
+        <div class="menu-window hidden" id="panel-main">
+            <h1>AIM FIRST BETA</h1>
+            <p id="welcome-text">Welcome, Operator.</p>
+            <div class="menu-pane">
+                <button class="btn btn-primary" onclick="switchPanel('panel-modes')"><span>Play Modules</span><span>➔</span></button>
+                <button class="btn" onclick="openSettingsMenu()"><span>Settings</span><span>⚙️</span></button>
+                <button class="btn" onclick="openLeaderboard()"><span>Leaderboard</span><span>🏆</span></button>
+                <button class="btn btn-back" onclick="logout()">Sign Out</button>
+            </div>
+        </div>
+
+        <!-- OPTIONS PANEL -->
+        <div class="menu-window hidden" id="panel-settings">
+            <h1>OPTIONS</h1>
+            <div class="menu-pane">
+                
+                <div class="settings-group">
+                    <label>Mouse Sensitivity: <span id="lbl-sens">1.0</span></label>
+                    <input type="range" id="opt-sens" min="0.1" max="5.0" step="0.1" value="1.0" oninput="document.getElementById('lbl-sens').innerText = this.value">
+                </div>
+
+                <div class="settings-group">
+                    <label>Crosshair Style:</label>
+                    <select id="opt-ch-style" class="settings-select">
+                        <option value="cross">Standard Cross</option>
+                        <option value="dot">Precision Dot</option>
+                        <option value="circle">Hollow Circle</option>
+                    </select>
+                </div>
+
+                <div class="settings-group">
+                    <label>Crosshair Size: <span id="lbl-ch-size">10</span></label>
+                    <input type="range" id="opt-ch-size" min="2" max="30" value="10" oninput="document.getElementById('lbl-ch-size').innerText = this.value">
+                </div>
+                
+                <div class="settings-group">
+                    <label>Crosshair Color:</label>
+                    <input type="color" id="opt-ch-color" value="#00ff66">
+                </div>
+
+                <div class="settings-group">
+                    <label>Gridshot Time (Seconds): <span id="lbl-time">30</span></label>
+                    <input type="range" id="opt-time" min="15" max="120" value="30" oninput="document.getElementById('lbl-time').innerText = this.value">
+                </div>
+
+                <button class="btn btn-primary" onclick="saveSettings()" style="justify-content: center; margin-top: 10px;">Save Configuration</button>
+                <button class="btn btn-back" onclick="switchPanel('panel-main')">Cancel</button>
+            </div>
+        </div>
+
+        <div class="menu-window hidden" id="panel-modes">
+            <h1>SELECT MODULE</h1>
+            <div class="menu-pane">
+                <button class="btn" onclick="initiateGameEngine('GRIDSHOT')">
+                    <div><strong>GRIDSHOT</strong><div style="font-size:12px; color:#a0aec0;">3 nodes. Time-Attack.</div></div>
+                </button>
+                <button class="btn" onclick="initiateGameEngine('REFLEX')">
+                    <div><strong>REFLEX SURVIVAL</strong><div style="font-size:12px; color:#a0aec0;">Shoot before they shoot you.</div></div>
+                </button>
+                <button class="btn btn-back" onclick="switchPanel('panel-main')">Back</button>
+            </div>
+        </div>
+
+        <div class="menu-window hidden" id="panel-leaderboard">
+            <h1>TOP OPERATORS</h1>
+            <p>Local Device Leaderboard (Gridshot)</p>
+            <div class="menu-pane" id="lb-container" style="max-height: 250px; overflow-y: auto;"></div>
+            <button class="btn btn-back" onclick="switchPanel('panel-main')">Return</button>
+        </div>
+
+        <div class="menu-window hidden" id="panel-gameover">
+            <h1 id="gameover-title">EVALUATION OVER</h1>
+            <div class="hud-box" style="margin: 20px 0; text-align: center; border-left:none; background: rgba(0,229,255,0.1); border-radius: 12px; box-shadow: 0 0 20px rgba(0,229,255,0.2);">
+                <div class="hud-label">Final Score</div>
+                <div class="hud-value" id="final-score-val" style="font-size: 64px; color: var(--aimlabs-blue);">0</div>
+            </div>
+            <div class="menu-pane">
+                <button class="btn btn-primary" onclick="switchPanel('panel-modes')"><span>Play Again</span><span>➔</span></button>
+                <button class="btn btn-back" onclick="switchPanel('panel-main')">Main Menu</button>
+            </div>
+        </div>
+    </div> 
+
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        // Settings Configuration
+        let SETTINGS = {
+            targetSpawnRateMs: 850,
+            targetLifespanMs: 1500,
+            enemyDamage: 25,
+            headshotScore: 300, bodyshotScore: 100, maxHealth: 100,
+            gridmodeDurationS: 30, 
+            sensitivity: 1.0, crosshairStyle: 'cross',
+            crosshairColor: '#00ff66', crosshairSize: 10, crosshairThickness: 2, crosshairGapBase: 5,
+            recoilKick: 10, recoilRecoveryRate: 0.55,
+            targetBodyRadius: 40,
+            targetHeadRadius: 14,
+        };
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        let currentUser = "Guest";
+        let gameState = 'MENU'; 
+        let currentMode = 'GRIDSHOT'; 
+        let score = 0; let hp = 100; let modeTimer = 0;
+        let targets = []; let particles = []; let lastTime = 0; let spawnTimer = 0;
+        
+        let mouseX = window.innerWidth / 2; let mouseY = window.innerHeight / 2;
+        let currentRecoil = 0;
+
+        function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeCanvas); resizeCanvas();
+
+        window.onload = () => {
+            const savedUser = localStorage.getItem('aimlabs_user');
+            if (savedUser) {
+                currentUser = savedUser;
+                document.getElementById('welcome-text').innerText = `Active Operator: ${currentUser}`;
+                switchPanel('panel-main');
+            }
+            const savedSettings = JSON.parse(localStorage.getItem('aimlabs_settings'));
+            if (savedSettings) SETTINGS = { ...SETTINGS, ...savedSettings };
+        };
+
+        function handleLogin() {
+            const input = document.getElementById('username-input').value.trim();
+            currentUser = input !== "" ? input : "Guest_" + Math.floor(Math.random()*1000);
+            localStorage.setItem('aimlabs_user', currentUser);
+            document.getElementById('welcome-text').innerText = `Active Operator: ${currentUser}`;
+            switchPanel('panel-main');
+        }
+
+        function logout() {
+            localStorage.removeItem('aimlabs_user');
+            document.getElementById('username-input').value = '';
+            switchPanel('panel-login');
+        }
+
+        function switchPanel(targetPanelId) {
+            ['panel-login', 'panel-main', 'panel-settings', 'panel-modes', 'panel-leaderboard', 'panel-gameover'].forEach(id => {
+                document.getElementById(id).classList.add('hidden');
+            });
+            document.getElementById(targetPanelId).classList.remove('hidden');
+            document.getElementById('menu-system').classList.remove('hidden');
+        }
+
+        function openSettingsMenu() {
+            document.getElementById('opt-sens').value = SETTINGS.sensitivity;
+            document.getElementById('lbl-sens').innerText = SETTINGS.sensitivity;
+            document.getElementById('opt-ch-style').value = SETTINGS.crosshairStyle;
+            document.getElementById('opt-ch-size').value = SETTINGS.crosshairSize;
+            document.getElementById('lbl-ch-size').innerText = SETTINGS.crosshairSize;
+            document.getElementById('opt-ch-color').value = SETTINGS.crosshairColor;
+            document.getElementById('opt-time').value = SETTINGS.gridmodeDurationS;
+            document.getElementById('lbl-time').innerText = SETTINGS.gridmodeDurationS;
+            switchPanel('panel-settings');
+        }
+
+        function saveSettings() {
+            SETTINGS.sensitivity = parseFloat(document.getElementById('opt-sens').value);
+            SETTINGS.crosshairStyle = document.getElementById('opt-ch-style').value;
+            SETTINGS.crosshairSize = parseInt(document.getElementById('opt-ch-size').value);
+            SETTINGS.crosshairColor = document.getElementById('opt-ch-color').value;
+            SETTINGS.gridmodeDurationS = parseInt(document.getElementById('opt-time').value);
+            localStorage.setItem('aimlabs_settings', JSON.stringify(SETTINGS));
+            switchPanel('panel-main');
+        }
+
+        function saveScore(finalScore, mode) {
+            let scores = JSON.parse(localStorage.getItem('aimlabs_scores')) || [];
+            scores.push({ name: currentUser, score: finalScore, mode: mode, date: new Date().toLocaleDateString() });
+            scores.sort((a, b) => b.score - a.score);
+            scores = scores.slice(0, 50);
+            localStorage.setItem('aimlabs_scores', JSON.stringify(scores));
+        }
+
+        function openLeaderboard() {
+            const container = document.getElementById('lb-container');
+            let scores = JSON.parse(localStorage.getItem('aimlabs_scores')) || [];
+            scores = scores.filter(s => s.mode === 'GRIDSHOT');
+
+            if (scores.length === 0) {
+                container.innerHTML = '<p style="color:#8b978f;">No data recorded yet.</p>';
+            } else {
+                container.innerHTML = scores.map((s, index) => `
+                    <div class="lb-entry ${s.name === currentUser ? 'highlight' : ''}">
+                        <span><strong>#${index + 1}</strong> ${s.name}</span>
+                        <span style="color:var(--aimlabs-blue); font-weight:bold;">${s.score}</span>
+                    </div>
+                `).join('');
+            }
+            switchPanel('panel-leaderboard');
+        }
+
+        function handleInputMove(e) {
+            if (gameState === 'PLAYING') {
+                if (document.pointerLockElement === canvas) {
+                    mouseX += e.movementX * SETTINGS.sensitivity;
+                    mouseY += e.movementY * SETTINGS.sensitivity;
+                    mouseX = Math.max(0, Math.min(canvas.width, mouseX));
+                    mouseY = Math.max(0, Math.min(canvas.height, mouseY));
+                } else {
+                    mouseX = e.clientX; 
+                    mouseY = e.clientY;
+                }
+            }
+        }
+        
+        function handleInputFire(e) {
+            if (gameState !== 'PLAYING') return;
+
+            if (e && e.clientX !== undefined && document.pointerLockElement !== canvas) {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            }
+
+            currentRecoil += SETTINGS.recoilKick;
+
+            for (let i = targets.length - 1; i >= 0; i--) {
+                let t = targets[i];
+                let dist = Math.hypot(mouseX - t.x, mouseY - t.y);
+
+                if (dist <= t.rBody) {
+                    if (dist <= t.rHead) {
+                        score += SETTINGS.headshotScore;
+                        particles.push({ type: 'text', x: t.x, y: t.y, text: "HEADSHOT", color: "#00e5ff", life: 1.0, vY: -1.2 });
+                    } else {
+                        score += SETTINGS.bodyshotScore;
+                        particles.push({ type: 'text', x: t.x, y: t.y, text: "BODY", color: "#ffffff", life: 1.0, vY: -1.2 });
+                    }
+                    particles.push({ type: 'hitmarker', x: mouseX, y: mouseY, life: 1.0 });
+                    targets.splice(i, 1);
+                    
+                    if (currentMode === 'GRIDSHOT') spawnTargetNode(performance.now());
+                    updateHUDView();
+                    break;
+                }
+            }
+        }
+
+        window.addEventListener('mousemove', handleInputMove);
+        window.addEventListener('mousedown', handleInputFire);
+        
+        document.addEventListener('pointerlockchange', () => {
+            if (gameState === 'PLAYING' && document.pointerLockElement !== canvas) {
+                terminateGameEngine('ABORTED');
+            }
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault(); 
+            if (gameState === 'PLAYING') {
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
+            }
+        }, {passive: false});
+        
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault(); 
+            if (gameState === 'PLAYING') {
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
+                handleInputFire();
+            }
+        }, {passive: false});
+
+        function initiateGameEngine(selectedMode) {
+            gameState = 'PLAYING'; currentMode = selectedMode;
+            score = 0; hp = SETTINGS.maxHealth; targets = []; particles = []; currentRecoil = 0; spawnTimer = 0;
+            
+            mouseX = canvas.width / 2;
+            mouseY = canvas.height / 2;
+
+            document.getElementById('menu-system').classList.add('hidden');
+            document.getElementById('ui-layer').classList.remove('hidden');
+            
+            try {
+                if (canvas.requestPointerLock) {
+                    let p = canvas.requestPointerLock();
+                    if (p && p.catch) p.catch(err => console.warn("Pointer lock denied.", err));
+                }
+            } catch (err) {
+                console.warn("Pointer lock error:", err);
+                document.body.style.cursor = 'none';
+            }
+
+            const now = performance.now();
+            if (currentMode === 'GRIDSHOT') {
+                document.getElementById('metric-label').innerText = "Time";
+                modeTimer = SETTINGS.gridmodeDurationS * 1000; 
+                for(let k = 0; k < 3; k++) spawnTargetNode(now);
+            } else {
+                document.getElementById('metric-label').innerText = "Health";
+                spawnTargetNode(now);
+            }
+            updateHUDView(); 
+        }
+
+        function terminateGameEngine(reasonCode) {
+            gameState = 'MENU';
+            document.getElementById('ui-layer').classList.add('hidden');
+            document.body.style.cursor = 'default';
+            
+            if (document.exitPointerLock) document.exitPointerLock();
+
+            saveScore(score, currentMode); 
+            
+            if (reasonCode === 'ABORTED') {
+                document.getElementById('gameover-title').innerText = "EVALUATION ABORTED";
+            } else {
+                document.getElementById('gameover-title').innerText = reasonCode === 'TIMEOUT' ? "TIME UP" : "ELIMINATED";
+            }
+            document.getElementById('final-score-val').innerText = score;
+            switchPanel('panel-gameover');
+        }
+
+        function processIncomingThreat() {
+            if (currentMode === 'GRIDSHOT') return; 
+            hp -= SETTINGS.enemyDamage; if (hp < 0) hp = 0;
+            updateHUDView();
+            document.getElementById('damage-overlay').style.opacity = '1';
+            setTimeout(() => { document.getElementById('damage-overlay').style.opacity = '0'; }, 50);
+            if (hp === 0) terminateGameEngine('DEAD');
+        }
+
+        function updateHUDView() {
+            document.getElementById('score-val').innerText = score;
+            if (currentMode !== 'GRIDSHOT') {
+                const h = document.getElementById('metric-val');
+                h.innerText = hp; h.style.color = hp <= 40 ? 'var(--valo-red)' : '#ffffff';
+            }
+        }
+
+        function spawnTargetNode(timestamp) {
+            const padding = SETTINGS.targetBodyRadius + 20;
+            targets.push({
+                x: padding + Math.random() * (canvas.width - padding * 2),
+                y: padding + Math.random() * (canvas.height - padding * 2),
+                spawnTime: timestamp, maxLife: SETTINGS.targetLifespanMs,
+                rBody: SETTINGS.targetBodyRadius, rHead: SETTINGS.targetHeadRadius
+            });
+        }
+
+        function renderAimlabsGrid() {
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
+            for (let y = 0; y < canvas.height; y += 50) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
+        }
+
+        function drawReticleSystem() {
+            const gap = SETTINGS.crosshairGapBase + currentRecoil; 
+            const len = SETTINGS.crosshairSize;
+            
+            ctx.strokeStyle = SETTINGS.crosshairColor; 
+            ctx.fillStyle = SETTINGS.crosshairColor;
+            ctx.lineWidth = SETTINGS.crosshairThickness;
+            
+            ctx.beginPath();
+            
+            if (SETTINGS.crosshairStyle === 'cross') {
+                ctx.rect(mouseX - 1, mouseY - 1, 2, 2); 
+                ctx.moveTo(mouseX, mouseY - gap); ctx.lineTo(mouseX, mouseY - gap - len);
+                ctx.moveTo(mouseX, mouseY + gap); ctx.lineTo(mouseX, mouseY + gap + len);
+                ctx.moveTo(mouseX - gap, mouseY); ctx.lineTo(mouseX - gap - len, mouseY);
+                ctx.moveTo(mouseX + gap, mouseY); ctx.lineTo(mouseX + gap + len, mouseY);
+                ctx.stroke();
+            } 
+            else if (SETTINGS.crosshairStyle === 'dot') {
+                ctx.arc(mouseX, mouseY, Math.max(2, len / 2), 0, Math.PI * 2);
+                ctx.fill();
+            } 
+            else if (SETTINGS.crosshairStyle === 'circle') {
+                ctx.arc(mouseX, mouseY, gap + (len / 2), 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.arc(mouseX, mouseY, 1.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            if (currentRecoil > 0) currentRecoil -= SETTINGS.recoilRecoveryRate;
+            if (currentRecoil < 0) currentRecoil = 0;
+        }
+
+        function processTargets(timestamp) {
+            for (let i = targets.length - 1; i >= 0; i--) {
+                let t = targets[i]; 
+                let age = timestamp - t.spawnTime;
+                
+                // CRITICAL SAFETY FIX: Clamped scale to positive values (0-1) to avoid canvas engine errors
+                let scale = Math.max(0, Math.min(1, age / 120));
+                
+                ctx.beginPath(); ctx.arc(t.x, t.y, t.rBody * scale, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 229, 255, 0.8)'; ctx.fill();
+                ctx.strokeStyle = 'rgba(255,255,255,0.3)'; ctx.stroke();
+                
+                ctx.beginPath(); ctx.arc(t.x, t.y, t.rHead * scale, 0, Math.PI * 2);
+                ctx.fillStyle = '#ffffff'; ctx.fill();
+
+                if (currentMode !== 'GRIDSHOT') {
+                    if (age >= t.maxLife) {
+                        processIncomingThreat(); targets.splice(i, 1);
+                        if (gameState === 'PLAYING') spawnTargetNode(timestamp); continue;
+                    }
+                    let progressRatio = Math.max(0, Math.min(1, 1 - (age / t.maxLife)));
+                    ctx.beginPath(); ctx.arc(t.x, t.y, (t.rBody * scale) + (25 * progressRatio), 0, Math.PI * 2);
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${progressRatio * 0.6})`; ctx.lineWidth = 1.5; ctx.stroke();
+                }
+            }
+        }
+
+        function renderParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i]; p.life -= 0.035;
+                if (p.life <= 0) { particles.splice(i, 1); continue; }
+                ctx.save(); ctx.globalAlpha = p.life;
+                if (p.type === 'text') {
+                    p.y += p.vY; ctx.font = '800 16px "Plus Jakarta Sans", Arial';
+                    ctx.fillStyle = p.color; ctx.textAlign = 'center'; ctx.fillText(p.text, p.x, p.y);
+                } else if (p.type === 'hitmarker') {
+                    const h = 6; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath();
+                    ctx.moveTo(p.x - h, p.y - h); ctx.lineTo(p.x + h, p.y + h);
+                    ctx.moveTo(p.x + h, p.y - h); ctx.lineTo(p.x - h, p.y + h); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+
+        function runtimeLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            let dt = timestamp - lastTime; lastTime = timestamp;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            renderAimlabsGrid();
+
+            if (gameState === 'PLAYING') {
+                if (currentMode === 'GRIDSHOT') {
+                    modeTimer -= dt;
+                    if (modeTimer <= 0) {
+                        document.getElementById('metric-val').innerText = 0;
+                        terminateGameEngine('TIMEOUT'); 
+                        requestAnimationFrame(runtimeLoop); 
+                        return;
+                    }
+                    document.getElementById('metric-val').innerText = Math.ceil(modeTimer / 1000);
+                } else {
+                    spawnTimer += dt;
+                    if (spawnTimer >= SETTINGS.targetSpawnRateMs) {
+                        if (targets.length < 5) spawnTargetNode(timestamp);
+                        spawnTimer = 0;
+                    }
+                }
+                processTargets(timestamp);
+                renderParticles();
+                drawReticleSystem(); 
+            }
+            
+            requestAnimationFrame(runtimeLoop);
+        }
+
+        requestAnimationFrame((ts) => { lastTime = ts; requestAnimationFrame(runtimeLoop); });
+    </script>
+</body>
+</html>
